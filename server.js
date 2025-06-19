@@ -4,6 +4,8 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authroutes');
 const protectedRoutes = require('./routes/protectedroutes');
+const jobRoutes = require('./routes/jobroutes');  
+
 
 const app = express();
 
@@ -16,7 +18,7 @@ app.use(cors());
 
 // Routes
 app.use('/api/auth', authRoutes);
-
+app.use('/api/jobs', jobRoutes);
 app.use('/api/protected', protectedRoutes);
 
 
