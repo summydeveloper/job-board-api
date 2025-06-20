@@ -1,15 +1,24 @@
+import { Request, Response } from 'express';
+import asyncHandler from 'express-async-handler';
+import Job from '../models/job.model';
+import { IUser } from '../models/user.model';
+import { Types } from 'mongoose';
 
-const Job = require('../models/job');
-const asyncHandler = require('express-async-handler');
+// Extend Express Request to include `user`
+interface AuthenticatedRequest extends Request {
+  user: IUser & { _id: Types.ObjectId };
+}
 
 // @desc    Create a new job
 // @route   POST /api/jobs
 // @access  Private (Employer)
-exports.createJob = asyncHandler(async (req, res) => {
+export const createJob = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthenticatedRequest;
   const { title, description, company, location, salary, jobType } = req.body;
 
   if (!title || !description || !company || !location) {
-    return res.status(400).json({ message: 'Please fill in all required fields' });
+    res.status(400).json({ message: 'Please fill in all required fields' });
+    return;
   }
 
   const job = await Job.create({
@@ -19,7 +28,7 @@ exports.createJob = asyncHandler(async (req, res) => {
     location,
     salary,
     jobType,
-    createdBy: req.user._id,
+    createdBy: authReq.user._id,
   });
 
   res.status(201).json(job);
@@ -28,20 +37,20 @@ exports.createJob = asyncHandler(async (req, res) => {
 // @desc    Get jobs with filters, sorting, and pagination
 // @route   GET /api/jobs
 // @access  Public
-exports.getJobs = asyncHandler(async (req, res) => {
+export const getJobs = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const {
     jobType,
     location,
     minSalary,
     maxSalary,
-    page = 1,
-    limit = 10,
+    page = '1',
+    limit = '10',
     sortBy = 'createdAt',
     order = 'desc',
   } = req.query;
 
-  // Build query object
-  const query = {};
+  const query: any = {};
+
   if (jobType) query.jobType = jobType;
   if (location) query.location = { $regex: location, $options: 'i' };
   if (minSalary || maxSalary) {
@@ -50,16 +59,13 @@ exports.getJobs = asyncHandler(async (req, res) => {
     if (maxSalary) query.salary.$lte = Number(maxSalary);
   }
 
-  // Pagination
   const pageNumber = Math.max(1, Number(page));
   const pageLimit = Math.max(1, Number(limit));
   const skip = (pageNumber - 1) * pageLimit;
 
-  // Sorting
-  const sortOptions = {};
-  sortOptions[sortBy] = order === 'desc' ? -1 : 1;
+  const sortOptions: any = {};
+  sortOptions[sortBy as string] = order === 'desc' ? -1 : 1;
 
-  // Query DB
   const jobs = await Job.find(query)
     .populate('createdBy', 'name email')
     .sort(sortOptions)
@@ -82,15 +88,18 @@ exports.getJobs = asyncHandler(async (req, res) => {
 // @desc    Update a job
 // @route   PUT /api/jobs/:id
 // @access  Private (Employer only if owner)
-exports.updateJob = asyncHandler(async (req, res) => {
+export const updateJob = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthenticatedRequest;
+
   const job = await Job.findById(req.params.id);
   if (!job) {
-    return res.status(404).json({ message: 'Job not found' });
+    res.status(404).json({ message: 'Job not found' });
+    return;
   }
 
-  // Check ownership
-  if (job.createdBy.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: 'Not authorized to update this job' });
+  if (job.createdBy.toString() !== authReq.user._id.toString()) {
+    res.status(403).json({ message: 'Not authorized to update this job' });
+    return;
   }
 
   const updatedJob = await Job.findByIdAndUpdate(req.params.id, req.body, {
@@ -104,15 +113,18 @@ exports.updateJob = asyncHandler(async (req, res) => {
 // @desc    Delete a job
 // @route   DELETE /api/jobs/:id
 // @access  Private (Employer only if owner)
-exports.deleteJob = asyncHandler(async (req, res) => {
+export const deleteJob = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const authReq = req as AuthenticatedRequest;
+
   const job = await Job.findById(req.params.id);
   if (!job) {
-    return res.status(404).json({ message: 'Job not found' });
+    res.status(404).json({ message: 'Job not found' });
+    return;
   }
 
-  // Check ownership
-  if (job.createdBy.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: 'Not authorized to delete this job' });
+  if (job.createdBy.toString() !== authReq.user._id.toString()) {
+    res.status(403).json({ message: 'Not authorized to delete this job' });
+    return;
   }
 
   await job.deleteOne();

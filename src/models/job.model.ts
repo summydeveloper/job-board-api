@@ -1,6 +1,19 @@
-const mongoose = require('mongoose');
+import mongoose, { Document, Schema, Model } from 'mongoose';
+import { IUser } from '../models/user.model'; // Assuming you have a user model with IUser interface
 
-const jobSchema = new mongoose.Schema(
+export interface IJob extends Document {
+  title: string;
+  description: string;
+  company: string;
+  location: string;
+  salary: number;
+  jobType: 'Full-Time' | 'Part-Time' | 'Contract';
+  createdBy: IUser['_id'];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const jobSchema: Schema<IJob> = new Schema(
   {
     title: {
       type: String,
@@ -38,4 +51,5 @@ const jobSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('Job', jobSchema);
+const Job: Model<IJob> = mongoose.model<IJob>('Job', jobSchema);
+export default Job;
