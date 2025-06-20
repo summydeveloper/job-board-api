@@ -1,3 +1,4 @@
+
 const Job = require('../models/job');
 const asyncHandler = require('express-async-handler');
 
@@ -24,12 +25,58 @@ exports.createJob = asyncHandler(async (req, res) => {
   res.status(201).json(job);
 });
 
-// @desc    Get all jobs
+// @desc    Get jobs with filters, sorting, and pagination
 // @route   GET /api/jobs
 // @access  Public
-exports.getAllJobs = asyncHandler(async (req, res) => {
-  const jobs = await Job.find().populate('createdBy', 'name email');
-  res.status(200).json(jobs);
+exports.getJobs = asyncHandler(async (req, res) => {
+  const {
+    jobType,
+    location,
+    minSalary,
+    maxSalary,
+    page = 1,
+    limit = 10,
+    sortBy = 'createdAt',
+    order = 'desc',
+  } = req.query;
+
+  // Build query object
+  const query = {};
+  if (jobType) query.jobType = jobType;
+  if (location) query.location = { $regex: location, $options: 'i' };
+  if (minSalary || maxSalary) {
+    query.salary = {};
+    if (minSalary) query.salary.$gte = Number(minSalary);
+    if (maxSalary) query.salary.$lte = Number(maxSalary);
+  }
+
+  // Pagination
+  const pageNumber = Math.max(1, Number(page));
+  const pageLimit = Math.max(1, Number(limit));
+  const skip = (pageNumber - 1) * pageLimit;
+
+  // Sorting
+  const sortOptions = {};
+  sortOptions[sortBy] = order === 'desc' ? -1 : 1;
+
+  // Query DB
+  const jobs = await Job.find(query)
+    .populate('createdBy', 'name email')
+    .sort(sortOptions)
+    .skip(skip)
+    .limit(pageLimit);
+
+  const totalJobs = await Job.countDocuments(query);
+  const totalPages = Math.ceil(totalJobs / pageLimit);
+
+  res.status(200).json({
+    data: jobs,
+    pagination: {
+      totalJobs,
+      totalPages,
+      currentPage: pageNumber,
+    },
+  });
 });
 
 // @desc    Update a job
@@ -41,7 +88,7 @@ exports.updateJob = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Job not found' });
   }
 
-  // Only the creator of the job can update it
+  // Check ownership
   if (job.createdBy.toString() !== req.user._id.toString()) {
     return res.status(403).json({ message: 'Not authorized to update this job' });
   }
@@ -63,11 +110,11 @@ exports.deleteJob = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Job not found' });
   }
 
-  // Only the creator of the job can delete it
+  // Check ownership
   if (job.createdBy.toString() !== req.user._id.toString()) {
     return res.status(403).json({ message: 'Not authorized to delete this job' });
   }
 
-  await job.deleteOne(); // .remove() is deprecated in newer Mongoose
+  await job.deleteOne();
   res.status(200).json({ message: 'Job deleted successfully' });
 });

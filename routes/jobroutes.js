@@ -3,15 +3,15 @@ const router = express.Router();
 
 const {
   createJob,
-  getAllJobs,
+  getJobs,
   updateJob,
   deleteJob,
 } = require('../controllers/jobcontroller');
 
 const { authenticate, authorizeRoles } = require('../middlewares/authmiddleware');
 
-// Public route
-router.get('/', getAllJobs);
+ 
+router.get('/', getJobs);
 
 // Protected & role-restricted routes (only employers can create/update/delete jobs)
 router.post('/', authenticate, authorizeRoles('employer'), createJob);
