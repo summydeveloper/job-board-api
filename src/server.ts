@@ -5,6 +5,8 @@ import connectDB from './config/db';
 import authRoutes from './routes/auth.routes';
 import protectedRoutes from './routes/protected.routes';
 import jobRoutes from './routes/job.routes';
+import applicationRoutes from "./routes/application.route";
+
 
 const app = express();
 
@@ -17,6 +19,7 @@ app.use(cors());
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/protected', protectedRoutes);
+app.use("/applications", applicationRoutes);
 
 // Start the server
 const PORT = process.env.PORT || 5000;
