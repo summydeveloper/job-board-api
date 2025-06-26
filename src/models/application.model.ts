@@ -1,14 +1,18 @@
-import { Schema, model, Types } from "mongoose";
 
-interface IApplication {
+import mongoose, { Document, Schema, model, Types } from "mongoose";
+
+ 
+export interface IApplication extends Document {
   applicantId: Types.ObjectId;
   jobId: Types.ObjectId;
   resumePath: string;
   coverLetterPath?: string;
   submittedAt: Date;
-  updatedAt?: Date;  
+  updatedAt?: Date;
+  status: "pending" | "shortlisted" | "rejected";
 }
 
+ 
 const ApplicationSchema = new Schema<IApplication>(
   {
     applicantId: {
@@ -24,24 +28,27 @@ const ApplicationSchema = new Schema<IApplication>(
     resumePath: {
       type: String,
       required: true,
-      match: /\.(pdf|docx?)$/i, 
+      match: /\.(pdf|docx?)$/i,
     },
     coverLetterPath: {
       type: String,
       required: false,
       match: /\.(pdf|docx?)$/i,
     },
+    status: {
+      type: String,
+      enum: ["pending", "shortlisted", "rejected"],
+      default: "pending",
+    },
   },
   {
-    timestamps: { createdAt: "submittedAt", updatedAt: true },  
+    timestamps: { createdAt: "submittedAt", updatedAt: true },
   }
 );
 
  
 ApplicationSchema.index({ applicantId: 1 });
 ApplicationSchema.index({ jobId: 1 });
-
- 
 ApplicationSchema.index({ applicantId: 1, jobId: 1 }, { unique: true });
-
-export const Application = model<IApplication>("Application", ApplicationSchema);
+ 
+export default model<IApplication>("Application", ApplicationSchema);

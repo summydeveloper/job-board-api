@@ -1,11 +1,12 @@
-import { Router, Request, Response, NextFunction, RequestHandler } from "express";
+import { Router } from "express";
+import { getApplicationsForJob, getMyApplications } from "../controllers/application.controller";
+import {  authenticate, authorizeRoles } from "../middlewares/auth.middleware";
 import { upload } from "../config/upload";
-import { Application } from "../models/application.model";
-import { authenticate, authorizeRoles } from "../middlewares/auth.middleware";
-import { Types } from "mongoose";
 import asyncHandler from "express-async-handler";
+import Application from "../models/application.model";
+import { Request, Response, NextFunction, RequestHandler } from "express";
+import { Types } from "mongoose";
 
- 
 interface AuthenticatedRequest extends Request {
   user: {
     id: string;
@@ -15,9 +16,10 @@ interface AuthenticatedRequest extends Request {
 
 const router = Router();
 
+// Controller for applying to a job
 const applyToJob: RequestHandler = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const typedReq = req as AuthenticatedRequest; 
+    const typedReq = req as AuthenticatedRequest;
 
     const applicantId = typedReq.user.id;
     const jobId = typedReq.params.jobId;
@@ -59,6 +61,13 @@ const applyToJob: RequestHandler = asyncHandler(
   }
 );
 
+// GET applications for a job (employer only)
+router.get("/jobs/:jobId/applications", authenticate, authorizeRoles("employer"), getApplicationsForJob);
+
+// GET my applications (applicant only)
+router.get("/my-applications", authenticate, authorizeRoles("applicant"), getMyApplications);
+
+// POST apply to a job (applicant only)
 router.post(
   "/apply/:jobId",
   authenticate,

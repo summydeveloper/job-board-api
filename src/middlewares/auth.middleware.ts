@@ -2,13 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import asyncHandler from 'express-async-handler';
 import User, { IUser } from '../models/user.model';
-
-// Extend Express Request to include user property
+ 
 interface AuthenticatedRequest extends Request {
-  user?: Partial<IUser>;
+  user?: Partial<IUser> & { id: string };  
 }
 
-// Protect routes - verify token and attach user
+ 
 export const authenticate = asyncHandler(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
@@ -23,14 +22,18 @@ export const authenticate = asyncHandler(
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: string };
 
-      // Load user from DB if you need fresh data
       const user = await User.findById(decoded.id).select('-password').lean().exec();
       if (!user) {
         res.status(401).json({ error: 'Unauthorized: User not found' });
         return;
       }
 
-      req.user = user;
+      // Since `.lean()` returns a plain object, you need to manually attach `id`
+      req.user = {
+        ...user,
+        id: user._id.toString(), // ensure `id` is accessible later
+      };
+
       next();
     } catch (err) {
       res.status(401).json({ error: 'Unauthorized: Token invalid' });
@@ -38,7 +41,7 @@ export const authenticate = asyncHandler(
   }
 );
 
-// Authorize roles - e.g., 'admin', 'recruiter'
+ 
 export const authorizeRoles =
   (...roles: string[]) =>
   (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
@@ -48,3 +51,4 @@ export const authorizeRoles =
     }
     next();
   };
+
